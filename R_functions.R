@@ -1,7 +1,7 @@
 ###  All R functions:
 
 ## function to make individual groups
-make_a_group <- function(neighb_list, gr_size, seed = 1L) {
+make_a_group <- function(neighb_list, gr_size, seed = 1L, centro_pol) {
   
   # if the seed is a 1 in character, make it integer to work after the first iteration
   if(seed=="1") seed <- 1L
@@ -10,6 +10,9 @@ make_a_group <- function(neighb_list, gr_size, seed = 1L) {
   gr <- list(gr = c(as.numeric(names(neighb_list)[seed]), neighb_list[[seed]]),
              eval = as.numeric(names(neighb_list)[seed]))
   nn <- length(gr$gr)
+  if(is.character(seed)) first_pol <- filter(centro_pol, index==seed) else
+    first_pol <- centro_pol[seed,]
+  
   
   # Until you reach target cluster size, do:
   while(nn < gr_size){
@@ -17,10 +20,18 @@ make_a_group <- function(neighb_list, gr_size, seed = 1L) {
     # find neighbours to evaluate
     to_eval <- gr$gr[!gr$gr %in% gr$eval]
     if(length(to_eval)==0) break() # if none, stop
+    
+    # order them from the closest to the furthest to try to make thighter groups
+    to_eval <- filter(centro_pol, index%in%to_eval) %>% 
+      st_distance(first_pol) %>% 
+      magrittr::extract(,1) %>% 
+      order %>% 
+      magrittr::extract(to_eval,.)
+    
     i = 1
     nb_to_eval <- length(to_eval)
     
-    # and evaluate them sequentially until you did them al or reach target size
+    # and evaluate them sequentially until you did them all or reach target size
     while(nn < gr_size & i<=nb_to_eval){
       gr$gr <- unique(c(gr$gr, neighb_list[[as.character(to_eval[i])]]))
       i = i+1
@@ -50,8 +61,12 @@ group_empty_pol <- function(pol_name, neighb_list, the_groups){
 
 
 ## Function to split the whole shape in groups from neighbours list
+### neighb_list: the neighbours list from st_touches
+### gr_size: the targeted group size (will not get match perfectly)
+### seed: the index of the polygon where to start the first group (can be "random")
+### centro_pol: the centroid of each polygons from st_centroid
 
-cluster_neighbours <- function(neighb_list, gr_size, seed = 1L){
+cluster_neighbours <- function(neighb_list, gr_size, seed = 1L, centro_pol){
   
   # validating the value of gr_size:
   if(gr_size<=1) stop("gr_size should be higher than 1")
@@ -70,6 +85,11 @@ cluster_neighbours <- function(neighb_list, gr_size, seed = 1L){
       stop("The seed must be a integer (index of the wanted polygon) from 1:n or 'random'")
   }
   
+  # preparing the centroid info (used to make thighter groups)
+ centro_pol <- centro_pol %>% 
+   mutate(index = names(neighb_list)) %>% 
+   select(index)
+  
   # initialize object
   ll_group <- list()
   neighb_temp <- neighb_list
@@ -80,7 +100,8 @@ cluster_neighbours <- function(neighb_list, gr_size, seed = 1L){
       names %>% 
       as.numeric() %>% 
       as.list
-    neighb_temp <- neighb_temp[sapply(neighb_temp, length)!=0]
+    centro_pol <- centro_pol[sapply(neighb_temp, length)!=0,]   # remove unique polygons
+    neighb_temp <- neighb_temp[sapply(neighb_temp, length)!=0]  # remove unique polygons
   }
   
   # validate that the seed chosen wasn't an island
@@ -96,7 +117,7 @@ cluster_neighbours <- function(neighb_list, gr_size, seed = 1L){
   while(length(neighb_temp)>0){
     
     # Make a group
-    res1 <- make_a_group(neighb_list = neighb_temp, gr_size = gr_size, seed = seed)
+    res1 <- make_a_group(neighb_list = neighb_temp, gr_size = gr_size, seed = seed, centro_pol = centro_pol)
     
     # reset seed to 1L so subsequent grouping follow previous group
     seed <- 1L
@@ -117,9 +138,10 @@ cluster_neighbours <- function(neighb_list, gr_size, seed = 1L){
         #assign the lonely polygon to a group
         ll_group <- group_empty_pol(pol_name = lost_all_neighb[i], neighb_list = neighb_list, the_groups = ll_group)
         
-        # Remove it from the neighbor list
+        # Remove it from the neighbor list (and centroid shape)
         neighb_temp <- neighb_temp[!names(neighb_temp)%in%lost_all_neighb[i]] %>% 
-          lapply(function(xx) xx[!xx%in%as.numeric(lost_all_neighb[i])])       
+          lapply(function(xx) xx[!xx%in%as.numeric(lost_all_neighb[i])])  
+        centro_pol <- filter(centro_pol, index%in%names(neighb_temp))
       }
     }
     ##

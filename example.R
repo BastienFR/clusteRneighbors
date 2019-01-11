@@ -22,8 +22,10 @@ DA_qc <- DA_qc %>%
 neighb <- st_touches(DA_qc, sparse = T) %>% 
   setNames(1:nrow(.)) 
 
+centroid <- st_centroid(DA_qc)
+
 ## make the first grouping with the required target size (it will be a minimum but for some exceptions see below))
-gr1 <- cluster_neighbours(neighb_list = neighb, gr_size = 1000)
+gr1 <- cluster_neighbours(neighb_list = neighb, gr_size = 1000, centro_pol=centroid)
 
 ## evaluate the size of the groups
 sapply(gr1, length)
