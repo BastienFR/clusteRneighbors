@@ -1,11 +1,14 @@
 ###  All R functions:
 
 ## function to make individual groups
-make_a_group <- function(neighb_list, gr_size) {
+make_a_group <- function(neighb_list, gr_size, seed = 1L) {
+  
+  # if the seed is a 1 in character, make it integer to work after the first iteration
+  if(seed=="1") seed <- 1L
   
   # make first group
-  gr <- list(gr = c(as.numeric(names(neighb_list)[1]), neighb_list[[1]]),
-             eval = as.numeric(names(neighb_list)[1]))
+  gr <- list(gr = c(as.numeric(names(neighb_list)[seed]), neighb_list[[seed]]),
+             eval = as.numeric(names(neighb_list)[seed]))
   nn <- length(gr$gr)
   
   # Until you reach target cluster size, do:
@@ -48,7 +51,24 @@ group_empty_pol <- function(pol_name, neighb_list, the_groups){
 
 ## Function to split the whole shape in groups from neighbours list
 
-cluster_neighbours <- function(neighb_list, gr_size){
+cluster_neighbours <- function(neighb_list, gr_size, seed = 1L){
+  
+  # validating the value of gr_size:
+  if(gr_size<=1) stop("gr_size should be higher than 1")
+  if(gr_size>=length(neighb_list)) stop("gr_size should be lower than the maximum number of polygons")
+  
+  
+  # adding a seed to the code, 
+  # the seed is the first polygon to be grouped.  It's an index for the table
+  # as to be a integer from 1:n or "random" 
+  if(length(seed)!=1) stop("seed should be a vector of size 1")
+  if(class(seed) == "character") {
+    if(seed!="random") 
+      stop("The seed must be a integer (index of the wanted polygon) from 1:n or 'random'") 
+  } else {
+    if(!(1L<=as.integer(seed) & as.integer(seed)<=length(neighb_list)))
+      stop("The seed must be a integer (index of the wanted polygon) from 1:n or 'random'")
+  }
   
   # initialize object
   ll_group <- list()
@@ -63,11 +83,23 @@ cluster_neighbours <- function(neighb_list, gr_size){
     neighb_temp <- neighb_temp[sapply(neighb_temp, length)!=0]
   }
   
+  # validate that the seed chosen wasn't an island
+  if(seed!=1 & seed!="random") if(!any(names(neighb_temp)==as.character(seed))) stop("The seed chosen is a island with no neighbors")
+  
+  # chose seed if random
+  if(seed=="random") seed <- sample(names(neighb_temp), 1)
+  
+  # making the seed character to be extracted by name
+  seed <- as.character(as.integer(seed))
+  
   # until all are neighbors list is empty, do:
   while(length(neighb_temp)>0){
     
     # Make a group
-    res1 <- make_a_group(neighb_list = neighb_temp, gr_size = gr_size)
+    res1 <- make_a_group(neighb_list = neighb_temp, gr_size = gr_size, seed = seed)
+    
+    # reset seed to 1L so subsequent grouping follow previous group
+    seed <- 1L
     
     # save the group
     ll_group <- append(ll_group, list(res1$gr))

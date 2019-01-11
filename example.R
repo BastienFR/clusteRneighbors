@@ -49,3 +49,36 @@ bind_cols(DA_qc,
 
 
 
+
+#### test seed:
+
+## should work
+
+# default
+gr1 <- cluster_neighbours(neighb_list = neighb, gr_size = 1000)
+
+# seed=1
+gr2 <- cluster_neighbours(neighb_list = neighb, gr_size = 1000, seed=1)
+identical(gr1,gr2)   # TRUE
+
+# seed=1000
+gr3 <- cluster_neighbours(neighb_list = neighb, gr_size = 1000, seed=1000)
+identical(gr1,gr3)  # FALSE
+
+# seed="random"
+gr4 <- cluster_neighbours(neighb_list = neighb, gr_size = 1000, seed="random")
+gr5 <- cluster_neighbours(neighb_list = neighb, gr_size = 1000, seed="random")
+identical(gr4,gr5)  # FALSE
+
+set.seed(123)
+gr6 <- cluster_neighbours(neighb_list = neighb, gr_size = 1000, seed="random")
+set.seed(123)
+gr7 <- cluster_neighbours(neighb_list = neighb, gr_size = 1000, seed="random")
+identical(gr6,gr7)  # TRUE
+
+## should't work
+gr8 <- cluster_neighbours(neighb_list = neighb, gr_size = 1000, seed=0.1)
+gr9 <- cluster_neighbours(neighb_list = neighb, gr_size = 1000, seed="patate")
+gr10 <- cluster_neighbours(neighb_list = neighb, gr_size = 1000, seed=1:4)
+gr10 <- cluster_neighbours(neighb_list = neighb, gr_size = 1000, seed=NULL)
+gr11 <- cluster_neighbours(neighb_list = neighb, gr_size = 1000, seed=NA)                          
